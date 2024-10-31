@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst.Intrinsics;
 using UnityEngine;
 
 public class Player : MonoBehaviour
@@ -10,6 +11,13 @@ public class Player : MonoBehaviour
     Rigidbody rigPlayer;
     Transform transPlayer;
     Transform transCamera;
+    float rayDist = 5f; // Максимальная дистанция, для Raycast
+    public string nameObj = null;
+    Transform grabPoint; // Точка, куда будет прикреплен объект
+    GameObject grabbedObj; // Выбранный объект
+    Rigidbody grabbedObjRig; // Rigidbody выбранного объекта
+    public bool handsFree = true; // руки свободны
+    public bool youCanGrab = false; // можно брать
 
     // Start is called before the first frame update
     void Start()
@@ -21,6 +29,7 @@ public class Player : MonoBehaviour
     void Update()
     {
         Control();
+        if (handsFree) RayPlayer();
     }
 
     private void FixedUpdate()
@@ -64,11 +73,10 @@ public class Player : MonoBehaviour
 
         transCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f); // поворот камеры
 
-        //if (Input.GetKeyDown(KeyCode.E))
-        //{
-        //    candle_SCRIPT.CandleCoveredSwitch();
-        //    hand_SCRIPT.HandCoverSwitch();
-        //}
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            gragPlayer();
+        }
     }
 
     void InItPlayer()
@@ -77,5 +85,55 @@ public class Player : MonoBehaviour
         transPlayer = GetComponent<Transform>();
         Cursor.lockState = CursorLockMode.Locked; // Скрываем и блокируем курсор мыши
         transCamera = transform.GetChild(0);
+        grabPoint = transCamera.GetChild(0);
+    }
+
+    void RayPlayer()
+    {
+        Ray ray = new Ray(transCamera.position, transCamera.forward);
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit, rayDist))
+        {
+            if (hit.collider.name != nameObj)
+            {
+                nameObj = hit.collider.name;
+                grabbedObj = hit.collider.gameObject;
+                youCanGrab = true;
+                Debug.Log("Objects: " + nameObj);
+            }
+        }
+        //else
+        //{
+        //    Debug.Log("совпадает имя");
+        //    youCanGrab = false;
+        //    grabbedObj = null;
+        //}
+    }
+
+    void gragPlayer()
+    {
+        Debug.Log("gragPlayer()");
+        if (youCanGrab && handsFree)
+        {
+            grabbedObjRig = grabbedObj.GetComponent<Rigidbody>();
+            grabbedObjRig.isKinematic = true;
+            grabbedObj.transform.SetParent(grabPoint);
+            grabbedObj.transform.localPosition = Vector3.zero;
+            grabbedObj.transform.localRotation = Quaternion.identity;
+            youCanGrab = false;
+            handsFree = false;
+            nameObj = null;
+        }
+        else if (!youCanGrab && !handsFree)
+        {
+            //grabbedObj.transform.localRotation = Quaternion.identity;
+            grabbedObjRig.isKinematic = false;
+            grabbedObj.transform.SetParent(null);
+            grabbedObjRig = null;
+            nameObj  = "grabEnd";
+            handsFree = true;
+            youCanGrab = false;
+        }
     }
 }
